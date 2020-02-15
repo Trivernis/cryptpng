@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -19,6 +20,8 @@ func check(err error) {
 		log.Fatal(err)
 	}
 }
+
+const chunkName = "crPt"
 
 var inputFile string
 var outputFile string
@@ -34,8 +37,6 @@ func main() {
 		f, err := os.Open(imageFile)
 		check(err)
 		defer f.Close()
-		info, _ := f.Stat()
-		fmt.Printf("size: %d\n",info.Size())
 		check(err)
 		fout, err := os.Create(outputFile)
 		check(err)
@@ -60,20 +61,22 @@ func EncryptDataPng(f *os.File, fin *os.File, fout *os.File) {
 	png := PngData{}
 	err := png.Read(f)
 	check(err)
-	inputData := readFileFull(fin)
+	inputData, err := ioutil.ReadAll(fin)
+	check(err)
 	inputData, err = encryptData(inputData)
 	check(err)
-	cryptChunk := CreateChunk(inputData, "crPt")
+	cryptChunk := CreateChunk(inputData, chunkName)
 	png.AddMetaChunk(cryptChunk)
 	err = png.Write(fout)
 	check(err)
 }
 
+// Decrypts the data from a png file
 func DecryptDataPng(f *os.File, fout *os.File) {
 	png := PngData{}
 	err := png.Read(f)
 	check(err)
-	cryptChunk := png.GetChunk("crPt")
+	cryptChunk := png.GetChunk(chunkName)
 	if cryptChunk != nil {
 		data, err := decryptData(cryptChunk.data)
 		check(err)
@@ -82,19 +85,6 @@ func DecryptDataPng(f *os.File, fout *os.File) {
 	} else {
 		log.Fatal("no encrypted data inside the input image")
 	}
-}
-
-// reads all bytes of a file
-func readFileFull(f *os.File) []byte {
-	tmp := make([]byte, 8)
-	data := make([]byte, 0)
-	_, err := f.Read(tmp)
-	for err != io.EOF {
-		data = append(data, tmp...)
-		_, err = f.Read(tmp)
-	}
-	data = append(data, tmp...)
-	return data
 }
 
 // creates an encrypted png chunk
