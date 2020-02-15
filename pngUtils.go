@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
-	"log"
+	"io"
 	"os"
 )
+
 
 type ChunkData struct {
 	length uint32
@@ -15,14 +17,91 @@ type ChunkData struct {
 	raw []byte
 }
 
+type PngData struct {
+	header []byte
+	chunks []ChunkData
+}
+
+// Reads the png data from a file into the struct
+func (p *PngData) Read(f *os.File) error {
+	valid, header := ValidatePng(f)
+	if valid {
+		p.header = header
+		err := p.readChunks(f)
+		if err != io.EOF {
+			return err
+		}
+	} else {
+		return errors.New("invalid png")
+	}
+	return nil
+}
+
+// writes all the data of the png into a new file
+func (p *PngData) Write(f *os.File) error {
+	_, err := f.Write(p.header)
+	if err != nil {
+		return err
+	}
+	err = p.writeChunks(f)
+	return err
+}
+
+// reads all chunks from a png file.
+// must be called after reading the header
+func (p *PngData) readChunks(f *os.File) error {
+	p.chunks = make([]ChunkData, 0)
+	chunk, err := ReadChunk(f)
+	for err == nil {
+		p.chunks = append(p.chunks, chunk)
+		chunk, err = ReadChunk(f)
+	}
+	p.chunks = append(p.chunks, chunk)
+	return err
+}
+
+// writes all chunks to the given file
+func (p *PngData) writeChunks(f *os.File) error {
+	for _, chunk := range p.chunks {
+		_, err := f.Write(chunk.raw)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// adds a meta chunk to the chunk data before the IDAT chunk.
+func (p *PngData) AddMetaChunk(metaChunk ChunkData) {
+	newChunks := make([]ChunkData, 0)
+	appended := false
+	for _, chunk := range p.chunks {
+		if chunk.name == "IDAT" && !appended {
+			newChunks = append(newChunks, metaChunk)
+			newChunks = append(newChunks, chunk)
+			appended = true
+		} else {
+			newChunks = append(newChunks, chunk)
+		}
+	}
+	p.chunks = newChunks
+}
+
+// Returns the reference of a chunk by name
+func (p *PngData) GetChunk(name string) *ChunkData {
+	for _, chunk := range p.chunks {
+		if chunk.name == name {
+			return &chunk
+		}
+	}
+	return nil
+}
 
 // validates the png by reading the header of the file
 func ValidatePng(f *os.File) (bool, []byte) {
 	headerBytes := make([]byte, 8)
 	_, err := f.Read(headerBytes)
-	if err != nil {
-		log.Fatal(err)
-	}
+	check(err)
 	firstByteMatch := headerBytes[0] == 0x89
 	pngAsciiMatch := string(headerBytes[1:4]) == "PNG"
 	dosCRLF := headerBytes[4] == 0x0d && headerBytes[5] == 0x0a

@@ -14,58 +14,87 @@ import (
 	"os"
 )
 
-var inputFile string
-var filename string
-func main() {
-	flag.StringVar(&inputFile, "input", "input.txt","The file with the input data.")
-	flag.StringVar(&filename, "image", "image.png", "The path of the png file.")
-	flag.Parse()
-	fmt.Println(filename)
-	f, err := os.Open(filename)
+func check(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
-	valid, header := ValidatePng(f)
-	if valid {
-		fout, err := os.Create("encrypted-" + filename)
-		if err != nil {
-			log.Fatal(err)
-		}
+}
+
+var inputFile string
+var outputFile string
+var imageFile string
+var decryptImage bool
+func main() {
+	flag.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
+	flag.BoolVar(&decryptImage, "decrypt", false, "If the input image should be decrypted.")
+	flag.StringVar(&outputFile, "out", "out.png", "The output file for the encrypted/decrypted data.")
+	flag.StringVar(&inputFile, "in", "input.txt","The file with the input data.")
+	flag.Parse()
+	if decryptImage {
+		f, err := os.Open(imageFile)
+		check(err)
+		defer f.Close()
+		info, _ := f.Stat()
+		fmt.Printf("size: %d\n",info.Size())
+		check(err)
+		fout, err := os.Create(outputFile)
+		check(err)
 		defer fout.Close()
-		_, _ = fout.Write(header)
-		chunk, err := ReadChunk(f)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for chunk.name != "IDAT" {
-			fmt.Printf("l: %d, n: %s, c: %d\n", chunk.length,  chunk.name, chunk.crc)
-			_, _ = fout.Write(chunk.raw)
-			chunk, err = ReadChunk(f)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Data to encrypt: ")
-		inputDataString, _ := reader.ReadString('\n')
-		inputData := []byte(inputDataString)
-		inputData, err = encryptData(inputData)
-		if err != nil {
-			panic(err)
-		}
-		cryptChunk := CreateChunk(inputData, "crPt")
-		_, _ = fout.Write(cryptChunk.raw)
-		for {
-			_, _ = fout.Write(chunk.raw)
-			chunk, err = ReadChunk(f)
-			if err != nil {
-				break
-			}
-		}
+		DecryptDataPng(f, fout)
 	} else {
-		log.Fatal("Invalid png.")
+		f, err := os.Open(imageFile)
+		check(err)
+		defer f.Close()
+		check(err)
+		fout, err := os.Create(outputFile)
+		check(err)
+		defer fout.Close()
+		fin, err := os.Open(inputFile)
+		check(err)
+		defer fin.Close()
+		EncryptDataPng(f, fin, fout)
 	}
+}
+
+func EncryptDataPng(f *os.File, fin *os.File, fout *os.File) {
+	png := PngData{}
+	err := png.Read(f)
+	check(err)
+	inputData := readFileFull(fin)
+	inputData, err = encryptData(inputData)
+	check(err)
+	cryptChunk := CreateChunk(inputData, "crPt")
+	png.AddMetaChunk(cryptChunk)
+	err = png.Write(fout)
+	check(err)
+}
+
+func DecryptDataPng(f *os.File, fout *os.File) {
+	png := PngData{}
+	err := png.Read(f)
+	check(err)
+	cryptChunk := png.GetChunk("crPt")
+	if cryptChunk != nil {
+		data, err := decryptData(cryptChunk.data)
+		check(err)
+		_, err = fout.Write(data)
+		check(err)
+	} else {
+		log.Fatal("no encrypted data inside the input image")
+	}
+}
+
+// reads all bytes of a file
+func readFileFull(f *os.File) []byte {
+	tmp := make([]byte, 8)
+	data := make([]byte, 0)
+	_, err := f.Read(tmp)
+	for err != io.EOF {
+		data = append(data, tmp...)
+		_, err = f.Read(tmp)
+	}
+	data = append(data, tmp...)
+	return data
 }
 
 // creates an encrypted png chunk
@@ -76,6 +105,15 @@ func encryptData(data []byte) ([]byte, error) {
 	key := make([]byte, 32 - len(pw))
 	key = append(key, []byte(pw)...)
 	return encrypt(key, data)
+}
+
+func decryptData(data []byte) ([]byte, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Password: ")
+	pw, _ := reader.ReadString('\n')
+	key := make([]byte, 32 - len(pw))
+	key = append(key, []byte(pw)...)
+	return decrypt(key, data)
 }
 
 // encrypt and decrypt functions taken from
