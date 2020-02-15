@@ -14,7 +14,20 @@ type ChunkData struct {
 	name string
 	data []byte
 	crc uint32
-	raw []byte
+}
+
+func (c *ChunkData) GetRaw() []byte {
+	raw := make([]byte, 0)
+	lengthRaw := make([]byte, 4)
+	crcRaw := make([]byte, 4)
+	binary.BigEndian.PutUint32(lengthRaw, c.length)
+	binary.BigEndian.PutUint32(crcRaw, c.crc)
+	nameRaw := []byte(c.name)
+	raw = append(raw, lengthRaw...)
+	raw = append(raw, nameRaw...)
+	raw = append(raw, c.data...)
+	raw = append(raw, crcRaw...)
+	return raw
 }
 
 type PngData struct {
@@ -63,7 +76,7 @@ func (p *PngData) readChunks(f *os.File) error {
 // writes all chunks to the given file
 func (p *PngData) writeChunks(f *os.File) error {
 	for _, chunk := range p.chunks {
-		_, err := f.Write(chunk.raw)
+		_, err := f.Write(chunk.GetRaw())
 		if err != nil {
 			return err
 		}
@@ -124,17 +137,11 @@ func ReadChunk(f *os.File) (ChunkData, error) {
 	_, err = f.Read(data)
 	_, err = f.Read(crcRaw)
 	crc := binary.BigEndian.Uint32(crcRaw)
-	fullData := make([]byte, 0)
-	fullData = append(fullData, lengthRaw...)
-	fullData = append(fullData, nameRaw...)
-	fullData = append(fullData, data...)
-	fullData = append(fullData, crcRaw...)
 	return ChunkData{
 		length: length,
 		name:   name,
 		data:   data,
 		crc:    crc,
-		raw: 	fullData,
 	}, err
 }
 
@@ -149,16 +156,11 @@ func CreateChunk(data []byte, name string) ChunkData {
 	crc := crc32.ChecksumIEEE(dataAndName)
 	rawCrc := make([]byte, 4)
 	binary.BigEndian.PutUint32(rawCrc, crc)
-	fullData := make([]byte, 0)
-	fullData = append(fullData, rawLength...)
-	fullData = append(fullData, dataAndName...)
-	fullData = append(fullData, rawCrc...)
 	return ChunkData{
 		length: uint32(len(data)),
 		name:   name,
 		data:   data,
 		crc:    crc,
-		raw:    fullData,
 	}
 }
 
