@@ -60,6 +60,7 @@ func main() {
 	}
 }
 
+// encrypts the data of fin inside the png (f) and writes it to fout
 func EncryptDataPng(f *os.File, fin *os.File, fout *os.File) {
 	png := PngData{}
 	err := png.Read(f)
@@ -99,6 +100,7 @@ func encryptData(data []byte) ([]byte, error) {
 	return encrypt(key, data)
 }
 
+// decrypts the data of a png chunk
 func decryptData(data []byte) ([]byte, error) {
 	key := readPassword()
 	return decrypt(key, data)
