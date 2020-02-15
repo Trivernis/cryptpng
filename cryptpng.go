@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"flag"
@@ -13,6 +13,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"syscall"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func check(err error) {
@@ -79,6 +82,9 @@ func DecryptDataPng(f *os.File, fout *os.File) {
 	cryptChunk := png.GetChunk(chunkName)
 	if cryptChunk != nil {
 		data, err := decryptData(cryptChunk.data)
+		if err != nil {
+			log.Println("\nThe provided password is probably incorrect.")
+		}
 		check(err)
 		_, err = fout.Write(data)
 		check(err)
@@ -89,21 +95,24 @@ func DecryptDataPng(f *os.File, fout *os.File) {
 
 // creates an encrypted png chunk
 func encryptData(data []byte) ([]byte, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Password: ")
-	pw, _ := reader.ReadString('\n')
-	key := make([]byte, 32 - len(pw))
-	key = append(key, []byte(pw)...)
+	key := readPassword()
 	return encrypt(key, data)
 }
 
 func decryptData(data []byte) ([]byte, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Password: ")
-	pw, _ := reader.ReadString('\n')
-	key := make([]byte, 32 - len(pw))
-	key = append(key, []byte(pw)...)
+	key := readPassword()
 	return decrypt(key, data)
+}
+
+// reads a password from the terminal
+// turns off the input for the typing of the password
+func readPassword() []byte {
+	fmt.Print("Password: ")
+	bytePw, err := terminal.ReadPassword(int(syscall.Stdin))
+	check(err)
+	hash := sha512.New512_256()
+	hash.Write(bytePw)
+	return hash.Sum(nil)
 }
 
 // encrypt and decrypt functions taken from
