@@ -1,6 +1,6 @@
 # Cryptpng
 
-A proof of concept implementation of storing encrypted data inside of png metadata chunks.
+A way to store encrypted data inside a png without altering the image itself.
 
 ## Usage
 
