@@ -17,7 +17,7 @@ type ChunkData struct {
 }
 
 func (c *ChunkData) GetRaw() []byte {
-	raw := make([]byte, 0)
+	var raw []byte
 	lengthRaw := make([]byte, 4)
 	crcRaw := make([]byte, 4)
 	binary.BigEndian.PutUint32(lengthRaw, c.length)
@@ -63,7 +63,6 @@ func (p *PngData) Write(f *os.File) error {
 // reads all chunks from a png file.
 // must be called after reading the header
 func (p *PngData) readChunks(f *os.File) error {
-	p.chunks = make([]ChunkData, 0)
 	chunk, err := ReadChunk(f)
 	for err == nil {
 		p.chunks = append(p.chunks, chunk)
@@ -86,7 +85,7 @@ func (p *PngData) writeChunks(f *os.File) error {
 
 // adds a meta chunk to the chunk data before the IDAT chunk.
 func (p *PngData) AddMetaChunk(metaChunk ChunkData) {
-	newChunks := make([]ChunkData, 0)
+	var newChunks []ChunkData
 	appended := false
 	for _, chunk := range p.chunks {
 		if chunk.name == "IDAT" && !appended {
@@ -161,7 +160,7 @@ func CreateChunk(data []byte, name string) ChunkData {
 	rawLength := make([]byte, 4)
 	binary.BigEndian.PutUint32(rawLength, uint32(len(data)))
 	rawName := []byte(name)
-	dataAndName := make([]byte, 0)
+	var dataAndName []byte
 	dataAndName = append(dataAndName, rawName...)
 	dataAndName = append(dataAndName, data...)
 	crc := crc32.ChecksumIEEE(dataAndName)
