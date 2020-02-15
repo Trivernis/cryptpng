@@ -1,18 +1,18 @@
 package main
 
 import (
+	"bufio"
+	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 	"flag"
 	"fmt"
-	"io"
-	"os"
-	"log"
-	"crypto/aes"
-	"bufio"
 	"hash/crc32"
-	"encoding/binary"
+	"io"
+	"log"
+	"os"
 )
 
 type ChunkData struct {
@@ -20,6 +20,7 @@ type ChunkData struct {
 	name string
 	data []byte
 	crc uint32
+	raw []byte
 }
 
 var filename string
@@ -44,7 +45,7 @@ func main() {
 		}
 		for chunk.name != "IDAT" {
 			fmt.Printf("l: %d, n: %s, c: %d\n", chunk.length,  chunk.name, chunk.crc)
-			_, _ = fout.Write(chunk.data)
+			_, _ = fout.Write(chunk.raw)
 			chunk, err = readChunk(f)
 			if err != nil {
 				log.Fatal(err)
@@ -59,9 +60,9 @@ func main() {
 			panic(err)
 		}
 		cryptChunk := createChunk(inputData, "crPt")
-		_, _ = fout.Write(cryptChunk.data)
+		_, _ = fout.Write(cryptChunk.raw)
 		for {
-			_, _ = fout.Write(chunk.data)
+			_, _ = fout.Write(chunk.raw)
 			chunk, err = readChunk(f)
 			if err != nil {
 				break
@@ -101,11 +102,17 @@ func readChunk(f *os.File) (ChunkData, error) {
 	_, err = f.Read(data)
 	_, err = f.Read(crcRaw)
 	crc := binary.BigEndian.Uint32(crcRaw)
+	fullData := make([]byte, 0)
+	fullData = append(fullData, lengthRaw...)
+	fullData = append(fullData, nameRaw...)
+	fullData = append(fullData, data...)
+	fullData = append(fullData, crcRaw...)
 	return ChunkData{
 		length: length,
 		name:   name,
 		data:   data,
 		crc:    crc,
+		raw: 	fullData,
 	}, err
 }
 
@@ -127,8 +134,9 @@ func createChunk(data []byte, name string) ChunkData {
 	return ChunkData{
 		length: uint32(len(data)),
 		name:   name,
-		data:   fullData,
+		data:   data,
 		crc:    crc,
+		raw: 	fullData,
 	}
 }
 
