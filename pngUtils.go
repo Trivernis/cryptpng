@@ -110,6 +110,17 @@ func (p *PngData) GetChunk(name string) *ChunkData {
 	return nil
 }
 
+// returns all chunks with a given name
+func (p *PngData) GetChunksByName(name string) []ChunkData {
+	var chunks []ChunkData
+	for _, chunk := range p.chunks {
+		if chunk.name == name {
+			chunks = append(chunks, chunk)
+		}
+	}
+	return chunks
+}
+
 // validates the png by reading the header of the file
 func ValidatePng(f *os.File) (bool, []byte) {
 	headerBytes := make([]byte, 8)

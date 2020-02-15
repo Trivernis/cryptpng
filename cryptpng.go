@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"syscall"
+	"math"
 
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -25,6 +26,7 @@ func check(err error) {
 }
 
 const chunkName = "crPt"
+const chunkSize = 0x100000
 
 var inputFile string
 var outputFile string
@@ -69,8 +71,13 @@ func EncryptDataPng(f *os.File, fin *os.File, fout *os.File) {
 	check(err)
 	inputData, err = encryptData(inputData)
 	check(err)
-	cryptChunk := CreateChunk(inputData, chunkName)
-	png.AddMetaChunk(cryptChunk)
+	chunkCount := int(math.Ceil(float64(len(inputData)) / chunkSize))
+	for i := 0; i < chunkCount; i++ {
+		dataStart := i * chunkSize
+		dataEnd := dataStart + int(math.Min(chunkSize, float64(len(inputData[dataStart:]))))
+		cryptChunk := CreateChunk(inputData[dataStart:dataEnd], chunkName)
+		png.AddMetaChunk(cryptChunk)
+	}
 	err = png.Write(fout)
 	check(err)
 }
@@ -80,9 +87,12 @@ func DecryptDataPng(f *os.File, fout *os.File) {
 	png := PngData{}
 	err := png.Read(f)
 	check(err)
-	cryptChunk := png.GetChunk(chunkName)
-	if cryptChunk != nil {
-		data, err := decryptData(cryptChunk.data)
+	var data []byte
+	for _, cryptChunk := range png.GetChunksByName(chunkName) {
+		data = append(data, cryptChunk.data...)
+	}
+	if len(data) > 0 {
+		data, err = decryptData(data)
 		if err != nil {
 			log.Println("\nThe provided password is probably incorrect.")
 		}
