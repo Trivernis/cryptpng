@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/ssh/terminal"
+	"github.com/cheggaaa/pb/v3"
 )
 
 func check(err error) {
@@ -86,47 +87,68 @@ func main() {
 // encrypts the data of fin inside the png (f) and writes it to fout
 func EncryptDataPng(f *os.File, fin *os.File, fout *os.File) {
 	png := PngData{}
+	log.Println("Reading image file...")
 	err := png.Read(f)
 	check(err)
+	log.Println("Reading input file...")
 	inputData, err := ioutil.ReadAll(fin)
 	check(err)
+	log.Println("Encrypting data...")
 	inputData, salt := encryptData(inputData)
 	check(err)
+	log.Println("Creating salt chunk...")
 	saltChunk := CreateChunk(salt, saltChunkName)
 	png.AddMetaChunk(saltChunk)
 	chunkCount := int(math.Ceil(float64(len(inputData)) / chunkSize))
+	bar := pb.StartNew(chunkCount)
+	log.Printf("Creating %d chunks to store the data...\n", chunkCount)
 	for i := 0; i < chunkCount; i++ {
 		dataStart := i * chunkSize
 		dataEnd := dataStart + int(math.Min(chunkSize, float64(len(inputData[dataStart:]))))
 		cryptChunk := CreateChunk(inputData[dataStart:dataEnd], chunkName)
 		png.AddMetaChunk(cryptChunk)
+		bar.Increment()
 	}
+	bar.Finish()
+	log.Println("Writing output file...")
 	err = png.Write(fout)
+	log.Println("Finished!")
 	check(err)
 }
 
 // Decrypts the data from a png file
 func DecryptDataPng(f *os.File, fout *os.File) {
 	png := PngData{}
+	log.Println("Reading image file...")
 	err := png.Read(f)
 	check(err)
 	salt := make([]byte, 0)
+	log.Println("Getting salt chunk...")
 	saltChunk := png.GetChunk(saltChunkName)
 	if saltChunk != nil {
 		salt = append(salt, saltChunk.data...)
 	}
 	var data []byte
-	for i, cryptChunk := range png.GetChunksByName(chunkName) {
+	cryptChunks := png.GetChunksByName(chunkName)
+	chunkCount := len(cryptChunks)
+	log.Printf("Reading %d crypt chunks...", chunkCount)
+	bar := pb.StartNew(chunkCount)
+	for i, cryptChunk := range cryptChunks {
 		if !cryptChunk.Verify() {
 			log.Fatalf("Corrupted chunk data, chunk #%d", i)
 		}
 		data = append(data, cryptChunk.data...)
+		bar.Increment()
 	}
+	bar.Finish()
 	if len(data) > 0 {
+		log.Println("Decrypting data...")
 		data, err = decryptData(data, salt)
 		check(err)
+		log.Println("Writing output file...")
 		_, err = fout.Write(data)
 		check(err)
+		log.Println("Finished!")
 	} else {
 		log.Fatal("no encrypted data inside the input image")
 	}
