@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"syscall"
 	"math"
+	"strings"
 
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/ssh/terminal"
@@ -45,7 +47,7 @@ func main() {
 	decryptFlags.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
 	encryptFlags.StringVar(&inputFile, "in", "input.txt","The file with the input data.")
 	encryptFlags.StringVar(&outputFile, "out", "out.png", "The output filename for the image.")
-	decryptFlags.StringVar(&outputFile, "out", "out.txt", "The output file for the decrypted data.")
+	decryptFlags.StringVar(&outputFile, "out", "out.png", "The output file for the decrypted data.")
 	flag.Parse()
 	switch os.Args[1] {
 	case "encrypt":
@@ -55,6 +57,13 @@ func main() {
 		check(err)
 		defer f.Close()
 		check(err)
+		if _, err := os.Stat(outputFile); err == nil {
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Printf("The output file %s exists and will be overwritten. Continue? [Y/n] ", outputFile)
+			if ans, _ := reader.ReadString('\n'); strings.ToLower(ans) != "y\n" {
+				log.Fatal("Aborting...")
+			}
+		}
 		fout, err := os.Create(outputFile)
 		check(err)
 		defer fout.Close()
