@@ -41,9 +41,7 @@ var decryptImage bool
 func main() {
 	encryptFlags := flag.NewFlagSet("encrypt", flag.ContinueOnError)
 	decryptFlags := flag.NewFlagSet("decrypt", flag.ContinueOnError)
-	encryptFlags.StringVar(&imageFile, "img", "image.png", "The path of the png file.")
 	encryptFlags.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
-	decryptFlags.StringVar(&imageFile, "img", "image.png", "The path of the png file.")
 	decryptFlags.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
 	encryptFlags.StringVar(&inputFile, "in", "input.txt","The file with the input data.")
 	encryptFlags.StringVar(&outputFile, "out", "out.png", "The output filename for the image.")
