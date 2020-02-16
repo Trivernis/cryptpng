@@ -109,14 +109,14 @@ func DecryptDataPng(f *os.File, fout *os.File) {
 		salt = append(salt, saltChunk.data...)
 	}
 	var data []byte
-	for _, cryptChunk := range png.GetChunksByName(chunkName) {
+	for i, cryptChunk := range png.GetChunksByName(chunkName) {
+		if !cryptChunk.Verify() {
+			log.Fatalf("Corrupted chunk data, chunk #%d", i)
+		}
 		data = append(data, cryptChunk.data...)
 	}
 	if len(data) > 0 {
 		data, err = decryptData(data, salt)
-		if err != nil {
-			log.Println("\nThe provided password is probably incorrect.")
-		}
 		check(err)
 		_, err = fout.Write(data)
 		check(err)

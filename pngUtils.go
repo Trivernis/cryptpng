@@ -30,6 +30,15 @@ func (c *ChunkData) GetRaw() []byte {
 	return raw
 }
 
+// verifies the integrity of the chunks data using crc
+func (c *ChunkData) Verify() bool {
+	var data []byte
+	data = append(data, []byte(c.name)...)
+	data = append(data, c.data...)
+	crc := crc32.ChecksumIEEE(data)
+	return c.crc == crc
+}
+
 type PngData struct {
 	header []byte
 	chunks []ChunkData
