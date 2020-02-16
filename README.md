@@ -23,7 +23,7 @@ image data. The steps for encrypting are:
 ### Encrypt
 
 1. Parse the png file and split it into chunks.
-2. Prompt for a password and use the sha512 32byte value with a generated salt.
+2. Prompt for a password and use the scrypt 32byte value with a generated salt.
 3. Store the salt in the `saLt` chunk.
 4. Encrypt the data using aes and the provided hashed key.
 5. Split the data into parts of 1 MiB of size.
@@ -35,6 +35,6 @@ image data. The steps for encrypting are:
 1. Parse the png file and split it into chunks.
 2. Get the `saLt` chunk.
 3. Get the `crPt` chunks and and concat the data.
-4. Prompt for the password and create the sha512 32byte hash with the salt.
+4. Prompt for the password and create the scrypt 32byte hash with the salt.
 5. Decrypt the data using aes and the provided hash key.
 6. Write the data to the specified output file.
