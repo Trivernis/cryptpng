@@ -37,21 +37,20 @@ var outputFile string
 var imageFile string
 var decryptImage bool
 func main() {
-	flag.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
-	flag.BoolVar(&decryptImage, "decrypt", false, "If the input image should be decrypted.")
-	flag.StringVar(&outputFile, "out", "out.png", "The output file for the encrypted/decrypted data.")
-	flag.StringVar(&inputFile, "in", "input.txt","The file with the input data.")
+	encryptFlags := flag.NewFlagSet("encrypt", flag.ContinueOnError)
+	decryptFlags := flag.NewFlagSet("decrypt", flag.ContinueOnError)
+	encryptFlags.StringVar(&imageFile, "img", "image.png", "The path of the png file.")
+	encryptFlags.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
+	decryptFlags.StringVar(&imageFile, "img", "image.png", "The path of the png file.")
+	decryptFlags.StringVar(&imageFile, "image", "image.png", "The path of the png file.")
+	encryptFlags.StringVar(&inputFile, "in", "input.txt","The file with the input data.")
+	encryptFlags.StringVar(&outputFile, "out", "out.png", "The output filename for the image.")
+	decryptFlags.StringVar(&outputFile, "out", "out.txt", "The output file for the decrypted data.")
 	flag.Parse()
-	if decryptImage {
-		f, err := os.Open(imageFile)
+	switch os.Args[1] {
+	case "encrypt":
+		err := encryptFlags.Parse(os.Args[2:])
 		check(err)
-		defer f.Close()
-		check(err)
-		fout, err := os.Create(outputFile)
-		check(err)
-		defer fout.Close()
-		DecryptDataPng(f, fout)
-	} else {
 		f, err := os.Open(imageFile)
 		check(err)
 		defer f.Close()
@@ -63,6 +62,17 @@ func main() {
 		check(err)
 		defer fin.Close()
 		EncryptDataPng(f, fin, fout)
+	case "decrypt":
+		err := decryptFlags.Parse(os.Args[2:])
+		check(err)
+		f, err := os.Open(imageFile)
+		check(err)
+		defer f.Close()
+		check(err)
+		fout, err := os.Create(outputFile)
+		check(err)
+		defer fout.Close()
+		DecryptDataPng(f, fout)
 	}
 }
 
@@ -149,6 +159,7 @@ func readPassword(passwordSalt *[]byte) ([]byte, []byte) {
 	}
 }
 
+// function to encrypt the data
 func encrypt(key, data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -164,13 +175,14 @@ func encrypt(key, data []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
+// function to decrypt the data
 func decrypt(key, data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 	if len(data) < aes.BlockSize {
-		return nil, errors.New("ciphertext too short")
+		return nil, errors.New("data too short")
 	}
 	iv := data[:aes.BlockSize]
 	data = data[aes.BlockSize:]

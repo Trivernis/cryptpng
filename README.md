@@ -6,10 +6,10 @@ A way to store encrypted data inside a png without altering the image itself.
 
 ```shell script
 # encrypt
-cryptpng --image <name of the image> --in <input file> --out <output file>
+cryptpng encrypt --image <name of the image> --in <input file> --out <output file>
 
 # decrypt
-cryptpng --decrypt --image <crypt image> --out <decrypted output file>
+cryptpng decrypt --image <crypt image> --out <decrypted output file>
 ```
 
 ## Technical Information
