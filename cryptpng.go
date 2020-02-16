@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha512"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 	"syscall"
 	"math"
 
+	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -27,6 +27,10 @@ func check(err error) {
 const saltChunkName = "saLt"
 const chunkName = "crPt"
 const chunkSize = 0x100000
+const scrN = 32768
+const scrR = 8
+const scrP = 1
+const scrKeyLength = 32
 
 var inputFile string
 var outputFile string
@@ -131,16 +135,17 @@ func readPassword(passwordSalt *[]byte) ([]byte, []byte) {
 	fmt.Print("Password: ")
 	bytePw, err := terminal.ReadPassword(int(syscall.Stdin))
 	check(err)
-	hash := sha512.New512_256()
 	if passwordSalt != nil {
-		hash.Write(append(*passwordSalt, bytePw...))
-		return hash.Sum(nil), *passwordSalt
+		key, err := scrypt.Key(bytePw, *passwordSalt, scrN, scrR, scrP, scrKeyLength)
+		check(err)
+		return key, *passwordSalt
 	} else {
 		salt := make([]byte, 32)
 		_, err = io.ReadFull(rand.Reader, salt)
 		check(err)
-		hash.Write(append(salt, bytePw...))
-		return hash.Sum(nil), salt
+		key, err := scrypt.Key(bytePw, salt, scrN, scrR, scrP, scrKeyLength)
+		check(err)
+		return key, salt
 	}
 }
 
