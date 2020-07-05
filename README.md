@@ -1,4 +1,4 @@
-# Cryptpng
+# Cryptpng ![](https://img.shields.io/discord/729250668162056313)
 
 A way to store encrypted data inside a png without altering the image itself.
 
