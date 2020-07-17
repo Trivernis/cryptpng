@@ -1,4 +1,6 @@
 # Cryptpng ![](https://img.shields.io/discord/729250668162056313)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FTrivernis%2Fcryptpng.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FTrivernis%2Fcryptpng?ref=badge_shield)
+
 
 A way to store encrypted data inside a png without altering the image itself.
 
@@ -38,3 +40,7 @@ image data. The steps for encrypting are:
 4. Prompt for the password and create the scrypt 32byte hash with the salt.
 5. Decrypt the data using aes and the provided hash key.
 6. Write the data to the specified output file.
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FTrivernis%2Fcryptpng.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FTrivernis%2Fcryptpng?ref=badge_large)
